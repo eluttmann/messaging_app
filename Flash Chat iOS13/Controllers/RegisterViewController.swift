@@ -15,9 +15,13 @@ class RegisterViewController: UIViewController {
     @IBOutlet weak var passwordTextfield: UITextField!
     @IBOutlet weak var errorLabel: UILabel!
     
+    //when user clicks register button...
     @IBAction func registerPressed(_ sender: UIButton) {
         //optional chaining - both need to have value, for if statement to occur
+
         if let email = emailTextfield.text, let password = passwordTextfield.text {
+            //standard firestoreAuth method to create user
+            //docs here: https://firebase.google.com/docs/auth/ios/password-auth#create_a_password-based_account
         Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
             if let e = error {
                 //show error on label on UI

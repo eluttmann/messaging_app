@@ -24,8 +24,9 @@ struct K {
         static let lighBlue = "BrandLightBlue"
     }
     
+    //firestore data connections
     struct FStore {
-        //Firestore collection
+        //Firestore collection for messages
         static let collectionName = "messages"
         static let senderField = "sender"
         static let bodyField = "body"

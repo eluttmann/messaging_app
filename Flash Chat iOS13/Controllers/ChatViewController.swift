@@ -18,6 +18,7 @@ class ChatViewController: UIViewController {
     //reference to Firestore database
     let db = Firestore.firestore()
     
+    //define local version of Message model - blank originally
     //Deleted the initial hard-coded messages
     var messages: [Message] = []
     
@@ -42,12 +43,13 @@ class ChatViewController: UIViewController {
         
     }
     
-    //show messages from Firebase in UI
+    // ⬇️ show messages from Firebase in UI
     func loadMessages() {
         
         //tap into FireBase database collection, then order based on "date" field in db, then use addSnapShotListener to find documents & then listen for updates
         //will return QuerySnapShot & error
         db.collection(K.FStore.collectionName)
+            //order by date
             .order(by: K.FStore.dateField)
             .addSnapshotListener { (QuerySnapshot, error) in
             
@@ -63,14 +65,17 @@ class ChatViewController: UIViewController {
                 
                     //loop through array of all documents, tap into data property (of type dictionary) for each document
                     for doc in snapshotDocuments {
-                    //⭐️ In FB, access data from each doc then save as local 'data' object (data is key value pair)
+                    //⭐️ In Firebase, access data from each doc then save as local 'data' object (data is key value pair)
                        let data = doc.data()
+                        //turn Firestore data into string type
                         //break up data into sender & body value (access w/ [] b/c dictionary)
                         //use optional bind to check for sender and body value (optionals)
                         if let messageSender = data[K.FStore.senderField] as? String, let messageBody = data[K.FStore.bodyField] as? String {
                             
                             //create newMessage object that will add to array of messages. (create from data in db in format of Message struct). For sender & body property use value from 'data' from Firebase
                             let newMessage = Message(sender: messageSender, body: messageBody)
+                            
+                            print("this is newMessage \(newMessage)")
                             
                             //add newMessage to array
                             //inside closure (getDocuments), so add self
@@ -80,7 +85,16 @@ class ChatViewController: UIViewController {
                             //use DispatchQueue to drive reload to main thread to show on UI, rather than background in closure
                             DispatchQueue.main.async {
                                 //self b/c in closure
+                                //triggers delegate methods (numberofRows + cellforRow) to add cells to table view
                                 self.tableView.reloadData()
+                                
+                                //use indexPath for which line we want to scroll to
+                                //to get to last item in array (count all then subtract 1)
+                                //only 1 section so set to 0
+                                let indexPath = IndexPath(row: self.messages.count - 1, section: 0)
+                                
+                                //create automatic scroll to bottom
+                                self.tableView.scrollToRow(at: indexPath, at: .top, animated: true)
                                 
                             }
                             
@@ -104,15 +118,15 @@ class ChatViewController: UIViewController {
             
             //Send message data to Firebase
             //create collection, "messages", then tap into
-            //Craete new rows in db via function "addDocument"
+            //Create new rows in db via function "addDocument"
             //data to send will be dictionary (key, value pair) - value = Any datatype
             db.collection(K.FStore.collectionName).addDocument(data: [
                 // ^ this will create new rows in Firebase database, code below determines scope & format to print
-                //send the user info to FB (key = sender, value = messageSender)
+                //send the user info to FB (key = "sender", value = messageSender)
                 K.FStore.senderField : messageSender,
-                //key = body, value = messageBody
+                //key = "body", value = messageBody
                 K.FStore.bodyField : messageBody,
-                //add timestamp to each document (key = "date", value = seconds since 19270)
+                //add timestamp to each document (key = "date", value = seconds since 1970)
                 K.FStore.dateField: Date().timeIntervalSince1970
                 
             //completion handler for error or success
@@ -121,12 +135,22 @@ class ChatViewController: UIViewController {
                     print("There was an issue saving data to firestore, \(e)")
                 } else {
                     print("Successfully saved data")
+                    //reset text field to blank after user presses send
+                    //dipatchQueue because in closure & update UI --> main thread
+                    DispatchQueue.main.async {
+                    self.messageTextfield.text = ""
+                    }
                 }
             }
         }
+        
+        
+        
     }
     
+    //user clicks log out button on UI
     @IBAction func logOutPressed(_ sender: UIBarButtonItem) {
+        //standard Firebase logout code
         let firebaseAuth = Auth.auth()
         do {
             //sign out user via Firebase
@@ -140,6 +164,7 @@ class ChatViewController: UIViewController {
 }
 
 //allows table view to make request for data when loads
+//Use UITableViewDataSource protocol (Step 1 - add to class)
 extension ChatViewController: UITableViewDataSource {
     
     //controls # of rows in table view
@@ -164,15 +189,16 @@ extension ChatViewController: UITableViewDataSource {
         //create message cell using messageCell clase + messageCell Xib
         let cell = tableView.dequeueReusableCell(withIdentifier: K.cellIdentifier, for: indexPath) as! MessageCell
         
+        //📲 present current message body on label on UI
         //give cell data from current row in messages array
         //tap into label outlet on MessageCell
         cell.label.text = message.body
         
         /* Adjustsments to cell --> */
-        //if message from current user
+        //if message is from current user
         //...Control cell displayed if sender property of message row in db matches current logged in user
         //doing reverse of how we assigned sender property as user email
-        if message.sender == Auth.auth().currentUser?.email{
+        if message.sender == Auth.auth().currentUser?.email {
             cell.leftImageView.isHidden = true
             //show the right image view
             cell.rightImageView.isHidden = false
